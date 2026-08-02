@@ -5,12 +5,18 @@ public class RoadRenderer : MonoBehaviour
 {
     [SerializeField]
     private CoordinateConverter coordinateConverter;
+    private Transform roadsParent;
     public void DrawRoad(
      RoadData road,
      Dictionary<long, NodeData> nodesDictionary)
     {
+        if (roadsParent == null)
+        {
+            GameObject roadsObject = new GameObject("Roads");
+            roadsParent = roadsObject.transform;
+        }
         GameObject roadObject = new GameObject("Road");
-        roadObject.transform.position = Vector3.zero;
+        roadObject.transform.SetParent(roadsParent);
 
         LineRenderer lineRenderer = roadObject.AddComponent<LineRenderer>();
         lineRenderer.useWorldSpace = true;
