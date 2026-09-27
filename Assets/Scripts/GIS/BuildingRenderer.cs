@@ -7,12 +7,17 @@ public class BuildingRenderer : MonoBehaviour
 {
     private Transform buildingsParent;
     private Material sharedBuildingMaterial;
+    private Material sharedEdgeMaterial;
 
     private void Awake()
     {
-        // Reuse a single material instance across all buildings
+        // Material for solid 3D walls and roofs (Beige)
         sharedBuildingMaterial = new Material(Shader.Find("Sprites/Default"));
         sharedBuildingMaterial.color = new Color(0.88f, 0.84f, 0.72f);
+
+        // Material for crisp outline edges (Black)
+        sharedEdgeMaterial = new Material(Shader.Find("Sprites/Default"));
+        sharedEdgeMaterial.color = Color.black;
     }
     public void DrawBuilding(BuildingData building)
     {
@@ -104,10 +109,85 @@ public class BuildingRenderer : MonoBehaviour
         Mesh wallMesh = WallGenerator.BuildWalls(outerVertices, building.Height);
 
         Mesh finalMesh = MeshCombiner.Combine(roofMesh, wallMesh);
+
+        // ------------------------------------
+        // Generate Black Architectural Outlines
+        // ------------------------------------
+        List<Vector3> lineVertices = new List<Vector3>();
+        List<int> lineIndices = new List<int>();
+
+        // 1. Outer Wall Edges (Top Roof Loop + Vertical Wall Pillars)
+        AddFootprintOutlines(outerVertices, building.Height, lineVertices, lineIndices);
+
+        // 2. Inner Courtyard Edges (if present)
+        if (building.InnerFootprints != null)
+        {
+            foreach (var hole in building.InnerFootprints)
+            {
+                List<Vector3> holeVerts = new List<Vector3>(hole);
+                Triangulator.RemoveClosingVertex(holeVerts);
+                if (holeVerts.Count >= 3)
+                {
+                    AddFootprintOutlines(holeVerts, building.Height, lineVertices, lineIndices);
+                }
+            }
+        }
+
+        // 3. Attach Edge Lines as Submesh #1
+        Vector3[] origVerts = finalMesh.vertices;
+        int origCount = origVerts.Length;
+
+        Vector3[] newVerts = new Vector3[origCount + lineVertices.Count];
+        System.Array.Copy(origVerts, 0, newVerts, 0, origCount);
+        for (int i = 0; i < lineVertices.Count; i++)
+        {
+            newVerts[origCount + i] = lineVertices[i];
+        }
+
+        int[] offsetIndices = new int[lineIndices.Count];
+        for (int i = 0; i < lineIndices.Count; i++)
+        {
+            offsetIndices[i] = lineIndices[i] + origCount;
+        }
+
+        finalMesh.vertices = newVerts;
+        finalMesh.subMeshCount = 2; // Submesh 0 = Triangles (Beige), Submesh 1 = Lines (Black)
+        finalMesh.SetIndices(offsetIndices, MeshTopology.Lines, 1);
+
         meshFilter.sharedMesh = finalMesh;
+        meshRenderer.sharedMaterials = new Material[] { sharedBuildingMaterial, sharedEdgeMaterial };
+    }
+
+    private void AddFootprintOutlines(List<Vector3> footprint, float height, List<Vector3> lineVerts, List<int> lineIndices)
+    {
+        int count = footprint.Count;
+        for (int i = 0; i < count; i++)
+        {
+            int next = (i + 1) % count;
+
+            Vector3 botCurr = new Vector3(footprint[i].x, 0, footprint[i].z);
+            Vector3 topCurr = new Vector3(footprint[i].x, height, footprint[i].z);
+            Vector3 topNext = new Vector3(footprint[next].x, height, footprint[next].z);
+
+            int idxBotCurr = lineVerts.Count;
+            lineVerts.Add(botCurr);
+
+            int idxTopCurr = lineVerts.Count;
+            lineVerts.Add(topCurr);
+
+            int idxTopNext = lineVerts.Count;
+            lineVerts.Add(topNext);
+
+            // Top Roof Edge Line
+            lineIndices.Add(idxTopCurr);
+            lineIndices.Add(idxTopNext);
+
+            // Vertical Wall Corner Line
+            lineIndices.Add(idxBotCurr);
+            lineIndices.Add(idxTopCurr);
+        }
     }
 }
-
     //public class BuildingRenderer : MonoBehaviour
     //{
     //    private Transform buildingsParent;
