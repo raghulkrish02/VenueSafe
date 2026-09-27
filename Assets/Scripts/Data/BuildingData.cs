@@ -1,21 +1,14 @@
-using UnityEngine;
-
 using System.Collections.Generic;
+using UnityEngine;
 
 public class BuildingData
 {
     public long Id;
-
     public float Height = 8f;
 
-    // Simple building (ordinary way)
-    public List<long> OuterNodeIds = new List<long>();
+    // Outer contour in Unity World Coordinates (XZ plane)
+    public List<Vector3> OuterFootprint = new List<Vector3>();
 
-    // Multipolygon relation
-    public List<long> OuterWayIds = new List<long>();
-
-    public List<long> InnerWayIds = new List<long>();
-
-    // Final polygons after reconstruction
-    public List<List<long>> InnerNodeIds = new List<List<long>>();
+    // Optional Inner contours (holes) in Unity World Coordinates
+    public List<List<Vector3>> InnerFootprints = new List<List<Vector3>>();
 }
