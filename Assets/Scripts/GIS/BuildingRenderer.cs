@@ -2,6 +2,7 @@
     using LibTessDotNet;
     using NetTopologySuite.Geometries;
     using UnityEngine;
+    using Unity.AI.Navigation;
 
 public class BuildingRenderer : MonoBehaviour
 {
@@ -11,9 +12,13 @@ public class BuildingRenderer : MonoBehaviour
 
     private void Awake()
     {
-        // Material for solid 3D walls and roofs (Beige)
-        sharedBuildingMaterial = new Material(Shader.Find("Sprites/Default"));
+        // Solid opaque material for 3D walls and roofs (Beige) with proper lighting/culling
+        Shader opaqueShader = Shader.Find("Universal Render Pipeline/Lit");
+        if (opaqueShader == null) opaqueShader = Shader.Find("Standard");
+        
+        sharedBuildingMaterial = new Material(opaqueShader);
         sharedBuildingMaterial.color = new Color(0.88f, 0.84f, 0.72f);
+        sharedBuildingMaterial.SetFloat("_Cull", (int)UnityEngine.Rendering.CullMode.Back);
 
         // Material for crisp outline edges (Black)
         sharedEdgeMaterial = new Material(Shader.Find("Sprites/Default"));
@@ -93,6 +98,12 @@ public class BuildingRenderer : MonoBehaviour
         MeshRenderer meshRenderer = buildingObject.AddComponent<MeshRenderer>();
         meshRenderer.sharedMaterial = sharedBuildingMaterial;
 
+        // Mark this building as a SOLID NON-WALKABLE OBSTACLE for NavMesh
+        NavMeshModifier modifier = buildingObject.AddComponent<NavMeshModifier>();
+        modifier.overrideArea = true;
+        modifier.area = 1; // 1 = "Not Walkable"
+        modifier.ignoreFromBuild = false;
+
         Vector3[] meshVertices = new Vector3[tess.Vertices.Length];
         for (int i = 0; i < tess.Vertices.Length; i++)
         {
@@ -106,9 +117,31 @@ public class BuildingRenderer : MonoBehaviour
         int[] triangles = (int[])tess.Elements.Clone();
 
         Mesh roofMesh = RoofGenerator.BuildRoof(meshVertices, triangles);
+
+        // Also build a bottom floor cap at Y = 0 to make the building watertight with no gaps underneath
+        Vector3[] bottomVertices = new Vector3[tess.Vertices.Length];
+        for (int i = 0; i < tess.Vertices.Length; i++)
+        {
+            bottomVertices[i] = new Vector3(
+                tess.Vertices[i].Position.X,
+                0f,
+                tess.Vertices[i].Position.Y
+            );
+        }
+        // Invert winding order for bottom floor so normals face downward/outward
+        int[] bottomTriangles = (int[])tess.Elements.Clone();
+        for (int i = 0; i < bottomTriangles.Length; i += 3)
+        {
+            int temp = bottomTriangles[i];
+            bottomTriangles[i] = bottomTriangles[i + 2];
+            bottomTriangles[i + 2] = temp;
+        }
+
+        Mesh floorMesh = RoofGenerator.BuildRoof(bottomVertices, bottomTriangles);
         Mesh wallMesh = WallGenerator.BuildWalls(outerVertices, building.Height);
 
-        Mesh finalMesh = MeshCombiner.Combine(roofMesh, wallMesh);
+        // Combine roof, floor, and walls into one solid watertight mesh
+        Mesh finalMesh = MeshCombiner.CombineThree(roofMesh, floorMesh, wallMesh);
 
         // ------------------------------------
         // Generate Black Architectural Outlines
