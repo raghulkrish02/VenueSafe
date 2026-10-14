@@ -10,7 +10,8 @@ public static class RoadMeshGenerator
         int count = centerline.Count;
         Vector3[] vertices = new Vector3[count * 2];
         Vector2[] uvs = new Vector2[count * 2];
-        int[] triangles = new int[(count - 1) * 6];
+        // Double-sided rendering (6 indices for top face + 6 indices for bottom face per quad)
+        int[] triangles = new int[(count - 1) * 12];
 
         float halfWidth = width * 0.5f;
 
@@ -35,11 +36,11 @@ public static class RoadMeshGenerator
             }
 
             // Perpendicular vector across the road on XZ plane
-            Vector3 normal = new Vector3(-forward.z, 0, forward.x).normalized;
+            Vector3 normal = new Vector3(-forward.z, 0f, forward.x).normalized;
 
-            // Elevate slightly to Y = 0.05f to sit cleanly above ground
-            Vector3 left = new Vector3(current.x - normal.x * halfWidth, 0.05f, current.z - normal.z * halfWidth);
-            Vector3 right = new Vector3(current.x + normal.x * halfWidth, 0.05f, current.z + normal.z * halfWidth);
+            // Place roads at Y = 0.05f so they sit cleanly on top of Walkable_Venue_Ground (Y = -0.05f)
+            Vector3 left = new Vector3(current.x + normal.x * halfWidth, 0.05f, current.z + normal.z * halfWidth);
+            Vector3 right = new Vector3(current.x - normal.x * halfWidth, 0.05f, current.z - normal.z * halfWidth);
 
             vertices[i * 2] = left;
             vertices[i * 2 + 1] = right;
@@ -50,15 +51,25 @@ public static class RoadMeshGenerator
             if (i < count - 1)
             {
                 int root = i * 2;
-                int triIndex = i * 6;
+                int triIdx = i * 12;
 
-                triangles[triIndex] = root;
-                triangles[triIndex + 1] = root + 2;
-                triangles[triIndex + 2] = root + 1;
+                // --- TOP FACE (Clockwise from above: Upward Normal) ---
+                triangles[triIdx] = root;
+                triangles[triIdx + 1] = root + 2;
+                triangles[triIdx + 2] = root + 1;
 
-                triangles[triIndex + 3] = root + 1;
-                triangles[triIndex + 4] = root + 2;
-                triangles[triIndex + 5] = root + 3;
+                triangles[triIdx + 3] = root + 1;
+                triangles[triIdx + 4] = root + 2;
+                triangles[triIdx + 5] = root + 3;
+
+                // --- BOTTOM FACE (Reverse Winding for Double-Sided Visibility) ---
+                triangles[triIdx + 6] = root;
+                triangles[triIdx + 7] = root + 1;
+                triangles[triIdx + 8] = root + 2;
+
+                triangles[triIdx + 9] = root + 1;
+                triangles[triIdx + 10] = root + 3;
+                triangles[triIdx + 11] = root + 2;
             }
         }
 

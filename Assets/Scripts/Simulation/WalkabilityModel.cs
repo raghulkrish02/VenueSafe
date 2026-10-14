@@ -54,10 +54,12 @@ public class WalkabilityModel : MonoBehaviour
         MeshRenderer mr = groundObject.GetComponent<MeshRenderer>();
         if (pavementMaterial == null)
         {
-            Shader s = Shader.Find("Universal Render Pipeline/Lit");
-            if (s == null) s = Shader.Find("Standard");
-            pavementMaterial = new Material(s);
-            pavementMaterial.color = new Color(0.2f, 0.2f, 0.2f);
+            pavementMaterial = Resources.Load<Material>("GroundMaterial");
+            if (pavementMaterial == null)
+            {
+                pavementMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                pavementMaterial.color = new Color(0.2f, 0.2f, 0.2f);
+            }
         }
         mr.sharedMaterial = pavementMaterial;
 

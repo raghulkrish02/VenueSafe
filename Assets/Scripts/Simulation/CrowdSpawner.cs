@@ -1,19 +1,30 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
 public class CrowdSpawner : MonoBehaviour
 {
-    [Header("Simulation Settings")]
+    [Header("Default Simulation Settings")]
     [SerializeField] private int totalAgents = 25;
     [SerializeField] private float spawnRate = 0.5f;
 
     private int agentsSpawned = 0;
+    private List<GameObject> activeAgents = new List<GameObject>();
+    private Coroutine spawnCoroutine;
 
-    // Called DIRECTLY by OvertureImporter once the NavMesh is 100% baked
+    // Called DIRECTLY by OvertureImporter or UncertaintyEngine
     public void StartSimulation(Vector3 origin, Vector3 destination)
     {
-        // Snap origin and destination cleanly onto the baked pavement NavMesh
+        StartSimulation(origin, destination, totalAgents, spawnRate, new Vector2(1.2f, 1.6f));
+    }
+
+    // Overload for UncertaintyEngine to inject Monte Carlo sampled parameters
+    public void StartSimulation(Vector3 origin, Vector3 destination, int count, float interval, Vector2 speedRange, Action onAllSpawned = null)
+    {
+        ClearAgents();
+
         if (NavMesh.SamplePosition(origin, out NavMeshHit hit1, 20f, NavMesh.AllAreas))
         {
             origin = hit1.position;
@@ -23,46 +34,70 @@ public class CrowdSpawner : MonoBehaviour
             destination = hit2.position;
         }
 
-        Debug.Log($"Crowd Spawner Starting: Spawning {totalAgents} pedestrians from {origin} to {destination}");
-        StartCoroutine(SpawnRoutine(origin, destination));
+        spawnCoroutine = StartCoroutine(SpawnRoutine(origin, destination, count, interval, speedRange, onAllSpawned));
     }
 
-    private IEnumerator SpawnRoutine(Vector3 origin, Vector3 destination)
+    private IEnumerator SpawnRoutine(Vector3 origin, Vector3 destination, int count, float interval, Vector2 speedRange, Action onAllSpawned)
     {
-        while (agentsSpawned < totalAgents)
+        agentsSpawned = 0;
+        while (agentsSpawned < count)
         {
-            SpawnAgent(origin, destination);
+            SpawnAgent(origin, destination, speedRange);
             agentsSpawned++;
-            yield return new WaitForSeconds(spawnRate);
+            yield return new WaitForSeconds(interval);
         }
+
+        onAllSpawned?.Invoke();
     }
 
-    private void SpawnAgent(Vector3 origin, Vector3 destination)
+    private void SpawnAgent(Vector3 origin, Vector3 destination, Vector2 speedRange)
     {
-        // 1. Create Pedestrian Capsule
         GameObject agentObj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         agentObj.name = $"Pedestrian_{agentsSpawned + 1}";
         agentObj.transform.localScale = new Vector3(0.5f, 0.9f, 0.5f);
         agentObj.transform.SetParent(transform);
 
-        // 2. Add visual material (Cyan crowd)
         MeshRenderer mr = agentObj.GetComponent<MeshRenderer>();
         Material mat = new Material(Shader.Find("Sprites/Default"));
         mat.color = new Color(0.1f, 0.75f, 1.0f);
         mr.sharedMaterial = mat;
 
-        // 3. Remove physics collider
         Destroy(agentObj.GetComponent<CapsuleCollider>());
 
-        // 4. Add NavMeshAgent and WARP directly to the road NavMesh
         NavMeshAgent nav = agentObj.AddComponent<NavMeshAgent>();
-        nav.Warp(origin); // Professional Unity API: Guarantees zero "not close enough" warnings!
-        nav.speed = Random.Range(1.2f, 1.6f);
+        nav.Warp(origin);
+        nav.speed = UnityEngine.Random.Range(speedRange.x, speedRange.y);
         nav.radius = 0.35f;
-        nav.avoidancePriority = Random.Range(20, 80);
+        nav.avoidancePriority = UnityEngine.Random.Range(20, 80);
 
-        // 5. Add CrowdAgent logic
         CrowdAgent crowdAgent = agentObj.AddComponent<CrowdAgent>();
         crowdAgent.Initialize(agentsSpawned + 1, destination, nav.speed);
+
+        activeAgents.Add(agentObj);
+    }
+
+    public void ClearAgents()
+    {
+        if (spawnCoroutine != null)
+        {
+            StopCoroutine(spawnCoroutine);
+            spawnCoroutine = null;
+        }
+
+        for (int i = activeAgents.Count - 1; i >= 0; i--)
+        {
+            if (activeAgents[i] != null)
+            {
+                Destroy(activeAgents[i]);
+            }
+        }
+        activeAgents.Clear();
+        agentsSpawned = 0;
+    }
+
+    public int GetActiveAgentCount()
+    {
+        activeAgents.RemoveAll(a => a == null);
+        return activeAgents.Count;
     }
 }

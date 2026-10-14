@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 44425717}
   - component: {fileID: 44425716}
   - component: {fileID: 44425719}
+  - component: {fileID: 44425720}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -178,7 +179,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 10000
   field of view: 60
   orthographic: 0
   orthographic size: 5
@@ -205,8 +206,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 44425715}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.041503266, y: -0.93702495, z: 0.32556552, w: 0.119452134}
-  m_LocalPosition: {x: 1236.7697, y: 831.34515, z: 1169.9587}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -256,6 +257,22 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!114 &44425720
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 44425715}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6625070dab303c4281ac09459c246c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FreeFlyCamera
+  normalSpeed: 30
+  sprintSpeed: 100
+  lookSensitivity: 2
+  zoomSpeed: 20
 --- !u!1 &84643559
 GameObject:
   m_ObjectHideFlags: 0

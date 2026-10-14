@@ -12,15 +12,14 @@ public class BuildingRenderer : MonoBehaviour
 
     private void Awake()
     {
-        // Solid opaque material for 3D walls and roofs (Beige) with proper lighting/culling
-        Shader opaqueShader = Shader.Find("Universal Render Pipeline/Lit");
-        if (opaqueShader == null) opaqueShader = Shader.Find("Standard");
-        
-        sharedBuildingMaterial = new Material(opaqueShader);
-        sharedBuildingMaterial.color = new Color(0.88f, 0.84f, 0.72f);
-        sharedBuildingMaterial.SetFloat("_Cull", (int)UnityEngine.Rendering.CullMode.Back);
+        // Loads from Resources - GUARANTEED zero pink in .exe builds!
+        sharedBuildingMaterial = Resources.Load<Material>("BuildingMaterial");
+        if (sharedBuildingMaterial == null)
+        {
+            sharedBuildingMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            sharedBuildingMaterial.color = new Color(0.88f, 0.84f, 0.72f);
+        }
 
-        // Material for crisp outline edges (Black)
         sharedEdgeMaterial = new Material(Shader.Find("Sprites/Default"));
         sharedEdgeMaterial.color = Color.black;
     }
